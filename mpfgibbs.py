@@ -153,7 +153,7 @@ def sampling(units = 16, n = 50000, m = 100, savesamples = 'True'):
     - savesamples: (bool)
     """
     tic = timeit.default_timer()
-    print ('Generating samples with %d units...' % (n))
+    print ('Generating %d samples with %d units...' % (n, units))
     timestr = time.strftime('%Y%m%d-%H%M')
     x = getseed(n = units)
     W = getW(n = units, index = timestr)
@@ -183,4 +183,4 @@ def sampling(units = 16, n = 50000, m = 100, savesamples = 'True'):
     return samples
 
 if __name__ == "__main__":
-    sampling(units = 32)
+    sampling(units = 32, n = 100000)

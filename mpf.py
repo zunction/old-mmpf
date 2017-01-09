@@ -106,7 +106,7 @@ def sgd(units = 16, learning_rate = 0.01, n_epochs = 1000, batch_size = 16,  tim
         for batch_index in range(n_dataset_batches):
             c.append(train_mpf(batch_index))
 
-        print ('Training epoch %d, Cost: %.2f, Time Elasped: %.2f' % (epoch, np.mean(c, dtype='float64'), (current_time - start_time)/60) )
+        print ('Training epoch %d, Cost: %f, Time Elasped: %.2f' % (epoch, np.mean(c, dtype='float64'), (current_time - start_time)/60) )
 
     end_time = timeit.default_timer()
 
