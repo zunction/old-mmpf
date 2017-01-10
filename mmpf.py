@@ -133,9 +133,10 @@ def sgd(units = 16, learning_rate = 10e-2, n_epochs = 1000, batch_size = 16,  sa
     ax[1].legend(['b', 'Learnt b'])
     ax[1].text(0.2, 0.1, 'F-norm(b): ' + str(fnormb), ha='center', va='center', transform = ax[1].transAxes, fontsize = 10)
 
-    E = n_epoch // 1000
+    E = n_epochs // 1000
 
-    savefilename = sample[:-4] + '-' + str(learning_rate)+ '-' + str(E) + 'K-' + str(batch_size) + '-'
+    #savefilename = sample[:-4] + '-' + str(learning_rate)+ '-' + str(E) + 'K-' + str(batch_size) + '-'
+    savefilename = sample[:,-4] + '-' + str(E) + 'K-' + str(batch_size) + '-'
 
 
     print ('Frobenius norm (W): %f' % fnormW)
