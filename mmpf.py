@@ -135,8 +135,8 @@ def sgd(units = 16, learning_rate = 10e-2, n_epochs = 1000, batch_size = 16,  sa
 
     E = n_epochs // 1000
 
-    #savefilename = sample[:-4] + '-' + str(learning_rate)+ '-' + str(E) + 'K-' + str(batch_size) + '-'
-    savefilename = sample[:,-4] + '-' + str(E) + 'K-' + str(batch_size) + '-'
+    # savefilename = sample[:-4] + '-' + str(learning_rate)+ '-' + str(E) + 'K-' + str(batch_size) + '-'
+    savefilename = sample[:-4] + '-' + str(E) + 'K-' + str(batch_size) + '-'
 
 
     print ('Frobenius norm (W): %f' % fnormW)
