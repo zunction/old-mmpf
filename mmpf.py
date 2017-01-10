@@ -126,10 +126,12 @@ def sgd(units = 16, learning_rate = 10e-2, n_epochs = 1000, batch_size = 16,  sa
     ax[0].plot(W_learnt.reshape(-1,1)[0:100], 'r')
     ax[0].set_title('Weight matrix, W')
     ax[0].legend(['W', 'Learnt W'])
+    ax[0].text(0.2, 0.1, 'F-norm(W): ' + str(fnormW), ha='center', va='center', transform = ax[0].transAxes, fontsize = 10)
     ax[1].plot(b.reshape(-1,1), 'b')
     ax[1].plot(b_learnt.reshape(-1,1),'r')
     ax[1].set_title('Bias, b')
     ax[1].legend(['b', 'Learnt b'])
+    ax[1].text(0.2, 0.1, 'F-norm(b): ' + str(fnormb), ha='center', va='center', transform = ax[1].transAxes, fontsize = 10)
 
     E = epoch // 1000
 
