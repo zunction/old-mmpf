@@ -127,6 +127,7 @@ def sgd(units = 16, learning_rate = 10e-2, n_epochs = 1000, batch_size = 16,  sa
     ax[0].set_title('Weight matrix, W')
     ax[0].legend(['W', 'Learnt W'])
     ax[0].text(0.2, 0.1, 'F-norm(W): ' + str(fnormW), ha='center', va='center', transform = ax[0].transAxes, fontsize = 10)
+    ax[0].text(0.8, 0.1, 'Time taken: ' + str(training_time/60.), ha='center',  va='center', transform = ax[0].transAxes, fontsize = 10)  
     ax[1].plot(b.reshape(-1,1), 'b')
     ax[1].plot(b_learnt.reshape(-1,1),'r')
     ax[1].set_title('Bias, b')
@@ -153,5 +154,5 @@ def sgd(units = 16, learning_rate = 10e-2, n_epochs = 1000, batch_size = 16,  sa
 
 
 if __name__ == "__main__":
-    sgd(units = 16, learning_rate = 1e-2, n_epochs = 1000, batch_size = 16,\
+    sgd(units = 16, learning_rate = 1e-2, n_epochs = 10, batch_size = 16,\
       sample = '16-50K.npy')
