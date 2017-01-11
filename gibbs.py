@@ -186,4 +186,4 @@ def sampling(units = 16, n = 50000, m = 100, randstate = 123):
 
 
 if __name__ == "__main__":
-    sampling(units = 32, n = 50000)
+    sampling(units = 32, n = 100000)
