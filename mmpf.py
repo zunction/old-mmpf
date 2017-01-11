@@ -117,8 +117,8 @@ def sgd(units = 16, learning_rate = 10e-2, n_epochs = 1000, batch_size = 16,  sa
     W = np.load(sample[0:2] + '-' + 'W' + '.npy')
     b = np.load(sample[0:2] + '-' + 'b' + '.npy')
 
-    fnormW = np.linalg.norm(W - W_learnt)
-    fnormb = np.linalg.norm(b - b_learnt)
+    fnormW = np.linalg.norm(W - W_learnt)/np.linalg.norm(W + W_learnt)
+    fnormb = np.linalg.norm(b - b_learnt)/np.linalg.norm(b + b_learnt)
 
     print ('Comparing the parameters learnt...')
     fig, ax = plt.subplots(2)
