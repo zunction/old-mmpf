@@ -86,6 +86,29 @@ class mpf(object):
         return cost, updates
 
 
+    def Kcost_nesterov(self, learning_rate = 1e-2, epsilon = 1, gamma = 0.9):
+        """
+        Returns the cost of SGD with Nesterov's accelerated gradient.
+        """
+
+        vW = theano.shared(np.zeros(self.W.eval().shape))
+        vb = theano.shared(np.zeros(self.b.eval().shape))
+
+        nextW = self.W - gamma * vW
+        nextb = self.b - gamma * vb
+
+        cost = T.mean(T.exp((0.5 - self.x) * (T.dot(self.x, nextW) + nextb)))
+        Wgrad = T.grad(cost, nextW)
+        bgrad = T.grad(cost, nextb)
+
+        vW_new = gamma * vW + learning_rate * Wgrad
+        vb_new = gamma * vb + learning_rate * bgrad
+        Wupdate = T.fill_diagonal(0.5 * ((self.W - vW_new) + (self.W - vW_new).T), 0)
+        updates = [(self.W, Wupdate), (self.b, self.b - vb_new), (vW, vW_new), (vb, vb_new)]
+
+        return cost, updates
+
+
 def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000, batch_size = 16,  sample = '16-50K.npy', flavour = 'vanilla'):
     """
     Perform stochastic gradient descent on MPF, plots parameters, computes Froenius norm and time taken.
@@ -107,22 +130,33 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000, batch_si
         cost, updates = flow.Kcost()
     elif flavour == 'momentum':
         cost, updates = flow.Kcost_momentum()
+    elif flavour == 'nesterov':
+        cost, updates = flow.Kcost_nesterov()
     else:
-        raise ValueError("Flavour must be 'vanilla', 'momentum' or 'nestrov'.")
+        raise ValueError("Flavour must be 'vanilla', 'momentum' or 'nesterov'.")
 
     train_mpf = theano.function(inputs = [index], outputs = cost, updates = updates, \
                                 givens = {x: dataset[index * batch_size: (index + 1) * batch_size]})
 
     start_time = timeit.default_timer()
 
+    W = np.load(sample[0:2] + '-' + 'W' + '.npy')
+    b = np.load(sample[0:2] + '-' + 'b' + '.npy')
+
     for epoch in range(n_epochs):
         c = []
         current_time = timeit.default_timer()
         for batch_index in range(n_dataset_batches):
             c.append(train_mpf(batch_index))
+        W_learnt = flow.W.get_value(borrow = True)
+        b_learnt = flow.b.get_value(borrow = True)
+        fnormW = np.linalg.norm(W - W_learnt)/np.linalg.norm(W + W_learnt)
+        fnormb = np.linalg.norm(b - b_learnt)/np.linalg.norm(b + b_learnt)
 
-
-        print ('Training epoch %d/%d, Cost: %f, Time Elasped: %.2f' % (epoch, n_epochs, np.mean(c, dtype='float64'), (current_time - start_time)/60) )
+        # print ('Training epoch %d/%d, Cost: %f, Time Elasped: %.2f' % (epoch, n_epochs, np.mean(c, dtype='float64'), (current_time - start_time)/60) )
+        print ('Training epoch %d/%d, Cost: %f, F-normW: %.2f, F-normb: %.2f, Time Elasped: %.2f'\
+         % (epoch, n_epochs, np.mean(c, dtype='float64'), \
+        fnormW, fnormb,  (current_time - start_time)/60) )
 
 
     end_time = timeit.default_timer()
@@ -133,8 +167,7 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000, batch_si
 
     W_learnt = flow.W.get_value(borrow = True)
     b_learnt = flow.b.get_value(borrow = True)
-    W = np.load(sample[0:2] + '-' + 'W' + '.npy')
-    b = np.load(sample[0:2] + '-' + 'b' + '.npy')
+
 
     fnormW = np.linalg.norm(W - W_learnt)/np.linalg.norm(W + W_learnt)
     fnormb = np.linalg.norm(b - b_learnt)/np.linalg.norm(b + b_learnt)
@@ -182,5 +215,5 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000, batch_si
 
 
 if __name__ == "__main__":
-    sgd(units = 16, learning_rate = 1e-3, epsilon = 1e-2, n_epochs = 5000, batch_size = 16,\
-      sample = '16-50K.npy', flavour = 'vanilla')
+    sgd(units = 32, learning_rate = 1e-3, epsilon = 1e-2, n_epochs = 5000, batch_size = 16,\
+      sample = '32-50K.npy', flavour = 'nesterov')
