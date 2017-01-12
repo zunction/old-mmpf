@@ -121,7 +121,9 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000, batch_si
         for batch_index in range(n_dataset_batches):
             c.append(train_mpf(batch_index))
 
-        print ('Training epoch %d, Cost: %f, Time Elasped: %.2f' % (epoch, np.mean(c, dtype='float64'), (current_time - start_time)/60) )
+
+        print ('Training epoch %d/%d, Cost: %f, Time Elasped: %.2f' % (epoch, n_epochs, np.mean(c, dtype='float64'), (current_time - start_time)/60) )
+
 
     end_time = timeit.default_timer()
 
@@ -138,18 +140,26 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000, batch_si
     fnormb = np.linalg.norm(b - b_learnt)/np.linalg.norm(b + b_learnt)
 
     print ('Comparing the parameters learnt...')
-    fig, ax = plt.subplots(2)
+    fig, ax = plt.subplots(3)
+    fig.tight_layout()
     ax[0].plot(W.reshape(-1,1)[0:100], 'b')
     ax[0].plot(W_learnt.reshape(-1,1)[0:100], 'r')
-    ax[0].set_title('Weight matrix, W')
+    # ax[0].set_title('W')
+    ax[0].set_title('W')
     ax[0].legend(['W', 'Learnt W'])
-    ax[0].text(0.2, 0.1, 'F-norm(W): ' + str(fnormW), ha='center', va='center', transform = ax[0].transAxes, fontsize = 10)
-    ax[0].text(0.8, 0.1, 'Time taken: ' + str(training_time/60.), ha='center',  va='center', transform = ax[0].transAxes, fontsize = 10)
+    # ax[0].text(0.2, 0.1, 'F-norm(W): ' + str(fnormW), ha='center', va='center', transform = ax[0].transAxes, fontsize = 10)
+    # ax[0].text(0.8, 0.1, 'Time taken: ' + str(training_time/60.), ha='center',  va='center', transform = ax[0].transAxes, fontsize = 10)
     ax[1].plot(b.reshape(-1,1), 'b')
     ax[1].plot(b_learnt.reshape(-1,1),'r')
-    ax[1].set_title('Bias, b')
+    # ax[1].set_title('b')
+    ax[1].set_title('b')
     ax[1].legend(['b', 'Learnt b'])
-    ax[1].text(0.2, 0.1, 'F-norm(b): ' + str(fnormb), ha='center', va='center', transform = ax[1].transAxes, fontsize = 10)
+    # ax[1].text(0.2, 0.1, 'F-norm(b): ' + str(fnormb), ha='center', va='center', transform = ax[1].transAxes, fontsize = 10)
+    ax[2].axis('off')
+    ax[2].text(0.2, 0.8, 'F-norm(W): ' + str(fnormW), ha='center', va='center', transform = ax[2].transAxes, fontsize = 10)
+    ax[2].text(0.2, 0.7, 'F-norm(b): ' + str(fnormb), ha='center', va='center', transform = ax[2].transAxes, fontsize = 10)
+    ax[2].text(0.2, 0.6, 'Time taken: ' + str(training_time/60.), ha='center',  va='center', transform = ax[2].transAxes, fontsize = 10)
+
 
     E = n_epochs // 1000
 
@@ -172,5 +182,5 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000, batch_si
 
 
 if __name__ == "__main__":
-    sgd(units = 32, learning_rate = 1e-2, epsilon = 1, n_epochs = 10, batch_size = 16,\
-      sample = '32-50K.npy', flavour = 'vanilla')
+    sgd(units = 16, learning_rate = 1e-3, epsilon = 1e-2, n_epochs = 5000, batch_size = 16,\
+      sample = '16-50K.npy', flavour = 'vanilla')
