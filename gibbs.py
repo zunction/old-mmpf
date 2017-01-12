@@ -122,24 +122,11 @@ def mixing(x, W, b, n = 50000, m = 100):
     - m: (int) number of updates before a sample is saved
     """
     samples = np.zeros((n, x.shape[0]))
-    one = n // 100
-    p = 1
+
     for i in range(n):
-        # if i % one == 0:
-        #     print ('%d %%' % p)
-        #     p += 1
         x = n_updates(x, W, b, m)
         samples[i, :] = x
-#     timestr = time.strftime('%Y%m%d-%H%M%S')
-#     filename = 'sample'+timestr+'.dat'
 
-#     if savesamples == "True":
-#         np.save(filename, samples)
-#         print ('Samples are saved as ' + filename)
-#     elif savesamples == "False":
-#         print ('Samples were not saved.')
-#     else:
-#         raise ValueError("savesamples must be 'True' or 'False'")
     return samples
 
 
@@ -175,7 +162,7 @@ def sampling(units = 16, n = 50000, m = 100, randstate = 123):
         burnt = burn_in(x, W, b)
         print ('Burnt:', burnt)
         print ('Mixing...')
-        samples = mixing(burnt, W, b, n, m)
+        samples = mixing(burnt, W, b, n = n, m = m)
 
         np.save(filename, samples)
         print ('samples saved as ' + filename + '.npy')
@@ -186,4 +173,4 @@ def sampling(units = 16, n = 50000, m = 100, randstate = 123):
 
 
 if __name__ == "__main__":
-    sampling(units = 32, n = 100000)
+    sampling(units = 32, n = 50000)
