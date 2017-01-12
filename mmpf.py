@@ -43,7 +43,7 @@ class mpf(object):
 
         self.W = W
         self.b = b
-#         self.input = input
+
         if input is None:
             self.x = T.dmatrix(name = 'input')
         else:
@@ -52,28 +52,43 @@ class mpf(object):
         self.params = [self.W, self.b]
 
 
-    def Kcost(self, learning_rate = 10e-2):
+    def Kcost(self, learning_rate = 1e-2, epsilon = 1):
         """
-        Returns the cost
+        Returns the cost of vanilla SGD.
         """
 
-        cost = T.mean(T.exp((0.5 - self.x) * (T.dot(self.x, self.W) + self.b)))
-#         gparams = T.grad(cost, self.params)
-#         updates = [(param, param - learning_rate * gparam) for param, gparam in zip(self.params, gparams)]
+        cost = T.mean(T.exp((0.5 - self.x) * (T.dot(self.x, self.W) + self.b))) * epsilon
         Wgrad = T.grad(cost, self.W)
-#         T.fill_diagonal(Wgrad, 0)
         bgrad = T.grad(cost, self.b)
 
         Wupdate = T.fill_diagonal(0.5 * ((self.W - learning_rate * Wgrad) + (self.W - learning_rate * Wgrad).T), 0)
         updates = [(self.W, Wupdate), (self.b, self.b - learning_rate * bgrad )]
-#         updates = [(self.W, self.W - learning_rate * Wgrad), (self.b, self.b - learning_rate * bgrad )]
 
         return cost, updates
 
 
-def sgd(units = 16, learning_rate = 10e-2, n_epochs = 1000, batch_size = 16,  sample = '16-50K.npy'):
+    def Kcost_momentum(self, learning_rate = 1e-2, epsilon = 1, gamma = 0.9):
+        """
+        Returns the cost of SGD with Momentum.
+        """
+
+        cost = T.mean(T.exp((0.5 - self.x) * (T.dot(self.x, self.W) + self.b)))
+        Wgrad = T.grad(cost, self.W)
+        bgrad = T.grad(cost, self.b)
+
+        vW = theano.shared(np.zeros(self.W.eval().shape))
+        vb = theano.shared(np.zeros(self.b.eval().shape))
+        vW_new = gamma * vW + learning_rate * Wgrad
+        vb_new = gamma * vb + learning_rate * bgrad
+        Wupdate = T.fill_diagonal(0.5 * ((self.W - vW_new) + (self.W - vW_new).T), 0)
+        updates = [(self.W, Wupdate), (self.b, self.b - vb_new), (vW, vW_new), (vb, vb_new)]
+
+        return cost, updates
+
+
+def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000, batch_size = 16,  sample = '16-50K.npy', flavour = 'vanilla'):
     """
-    Perform stochastic gradient descent on MPF
+    Perform stochastic gradient descent on MPF, plots parameters, computes Froenius norm and time taken.
     """
     print ('Loading '+ 'sample' + '...')
 
@@ -81,17 +96,19 @@ def sgd(units = 16, learning_rate = 10e-2, n_epochs = 1000, batch_size = 16,  sa
 
     n_dataset_batches = dataset.get_value(borrow = True).shape[0] // batch_size
 
-    print ('Building the model...')
+    print ('Building the model with flavour ' + flavour + '...')
 
     index = T.lscalar()
     x = T.matrix('x')
 
-#     if not os.path.isdir(output_folder):
-#         os.makedirs(output_folder)
-#     os.chdir(output_folder)
-
     flow = mpf(input = x, n = units)
-    cost, updates = flow.Kcost()
+
+    if flavour == 'vanilla':
+        cost, updates = flow.Kcost()
+    elif flavour == 'momentum':
+        cost, updates = flow.Kcost_momentum()
+    else:
+        raise ValueError("Flavour must be 'vanilla', 'momentum' or 'nestrov'.")
 
     train_mpf = theano.function(inputs = [index], outputs = cost, updates = updates, \
                                 givens = {x: dataset[index * batch_size: (index + 1) * batch_size]})
@@ -127,7 +144,7 @@ def sgd(units = 16, learning_rate = 10e-2, n_epochs = 1000, batch_size = 16,  sa
     ax[0].set_title('Weight matrix, W')
     ax[0].legend(['W', 'Learnt W'])
     ax[0].text(0.2, 0.1, 'F-norm(W): ' + str(fnormW), ha='center', va='center', transform = ax[0].transAxes, fontsize = 10)
-    ax[0].text(0.8, 0.1, 'Time taken: ' + str(training_time/60.), ha='center',  va='center', transform = ax[0].transAxes, fontsize = 10)  
+    ax[0].text(0.8, 0.1, 'Time taken: ' + str(training_time/60.), ha='center',  va='center', transform = ax[0].transAxes, fontsize = 10)
     ax[1].plot(b.reshape(-1,1), 'b')
     ax[1].plot(b_learnt.reshape(-1,1),'r')
     ax[1].set_title('Bias, b')
@@ -136,9 +153,9 @@ def sgd(units = 16, learning_rate = 10e-2, n_epochs = 1000, batch_size = 16,  sa
 
     E = n_epochs // 1000
 
-    # savefilename = sample[:-4] + '-' + str(learning_rate)+ '-' + str(E) + 'K-' + str(batch_size) + '-'
-    savefilename = sample[:-4] + '-' + str(E) + 'K-' + str(batch_size) + '-'
-
+    savefilename = sample[:-4] + '-' + '{0:.0e}'.format(learning_rate) + '-' + \
+    '{0:.0e}'.format(epsilon) + '-' + str(E) + 'K-' + str(batch_size) + '-' + \
+    flavour + '-'
 
     print ('Frobenius norm (W): %f' % fnormW)
     print ('Frobenius norm (b): %f' % fnormb)
@@ -149,10 +166,11 @@ def sgd(units = 16, learning_rate = 10e-2, n_epochs = 1000, batch_size = 16,  sa
 
     plt.savefig('{}{:d}.png'.format(savefilename, i))
     print ('Saving plots to ' + '{}{:d}.png'.format(savefilename, i))
+    print ('Naming convention: units-sample_size-learning_rate-epsilon-epochs-batchsize-runs')
 
     return W_learnt, b_learnt
 
 
 if __name__ == "__main__":
-    sgd(units = 32, learning_rate = 1e-2, n_epochs = 1000, batch_size = 16,\
-      sample = '32-50K.npy')
+    sgd(units = 32, learning_rate = 1e-2, epsilon = 1, n_epochs = 10, batch_size = 16,\
+      sample = '32-50K.npy', flavour = 'vanilla')
