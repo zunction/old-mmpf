@@ -22,7 +22,7 @@ class mpf(object):
     Minimum probability flow
     """
 
-    def __init__(self, input = None, n = 16, W = None, b = None):
+    def __init__(self, input = None, n = 16, W = None, b = None, gpu = False):
         """
         Initialize mpf class
         """
@@ -43,6 +43,7 @@ class mpf(object):
 
         self.W = W
         self.b = b
+        self.gpu = gpu
 
         if input is None:
             self.x = T.dmatrix(name = 'input')
@@ -76,8 +77,13 @@ class mpf(object):
         Wgrad = T.grad(cost, self.W)
         bgrad = T.grad(cost, self.b)
 
-        vW = theano.shared(np.zeros(self.W.eval().shape))
-        vb = theano.shared(np.zeros(self.b.eval().shape))
+        if self.gpu:
+            vW = theano.shared(np.zeros(self.W.eval().shape).astype(np.float32))
+            vb = theano.shared(np.zeros(self.b.eval().shape).astype(np.float32))
+        else:
+            vW = theano.shared(np.zeros(self.W.eval().shape))
+            vb = theano.shared(np.zeros(self.b.eval().shape))
+
         vW_new = gamma * vW + learning_rate * Wgrad
         vb_new = gamma * vb + learning_rate * bgrad
         Wupdate = T.fill_diagonal(0.5 * ((self.W - vW_new) + (self.W - vW_new).T), 0)
@@ -91,8 +97,12 @@ class mpf(object):
         Returns the cost of SGD with Nesterov's accelerated gradient.
         """
 
-        vW = theano.shared(np.zeros(self.W.eval().shape))
-        vb = theano.shared(np.zeros(self.b.eval().shape))
+        if self.gpu:
+            vW = theano.shared(np.zeros(self.W.eval().shape).astype(np.float32))
+            vb = theano.shared(np.zeros(self.b.eval().shape).astype(np.float32))
+        else:
+            vW = theano.shared(np.zeros(self.W.eval().shape))
+            vb = theano.shared(np.zeros(self.b.eval().shape))
 
         nextW = self.W - gamma * vW
         nextb = self.b - gamma * vb
@@ -109,17 +119,18 @@ class mpf(object):
         return cost, updates
 
 
-def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000, batch_size = 16,  sample = '16-50K.npy', flavour = 'vanilla'):
+def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000,\
+    batch_size = 16,  sample = '16-50K.npy', gpu = False, flavour = 'vanilla'):
     """
     Perform stochastic gradient descent on MPF, plots parameters, computes Froenius norm and time taken.
     """
-    print ('Loading '+ 'sample' + '...')
+    print ('Loading '+ 'sample' + '... \n')
 
     dataset = load_data(sample)
 
     n_dataset_batches = dataset.get_value(borrow = True).shape[0] // batch_size
 
-    print ('Building the model with flavour ' + flavour + '...')
+    print ('Building the model with flavour ' + flavour + '... \n')
 
     index = T.lscalar()
     x = T.matrix('x')
@@ -143,6 +154,11 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000, batch_si
     W = np.load(sample[0:2] + '-' + 'W' + '.npy')
     b = np.load(sample[0:2] + '-' + 'b' + '.npy')
 
+    fnormW_history = []
+    fnormb_history = []
+    cost_history = []
+    f_history = []
+
     for epoch in range(n_epochs):
         c = []
         current_time = timeit.default_timer()
@@ -152,9 +168,14 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000, batch_si
         b_learnt = flow.b.get_value(borrow = True)
         fnormW = np.linalg.norm(W - W_learnt)/np.linalg.norm(W + W_learnt)
         fnormb = np.linalg.norm(b - b_learnt)/np.linalg.norm(b + b_learnt)
+        f_current = (fnormW * fnormb)/(fnormW + fnormb)
 
-        # print ('Training epoch %d/%d, Cost: %f, Time Elasped: %.2f' % (epoch, n_epochs, np.mean(c, dtype='float64'), (current_time - start_time)/60) )
-        print ('Training epoch %d/%d, Cost: %f, F-normW: %.2f, F-normb: %.2f, Time Elasped: %.2f'\
+        fnormW_history.append(fnormW)
+        fnormb_history.append(fnormb)
+        cost_history.append(np.mean(c, dtype='float64'))
+        f_history.append(f_current)
+
+        print ('Training epoch %d/%d, Cost: %f, F-normW: %.2f, F-normb: %.2f, Time Elasped: %.2f '\
          % (epoch, n_epochs, np.mean(c, dtype='float64'), \
         fnormW, fnormb,  (current_time - start_time)/60) )
 
@@ -163,7 +184,7 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000, batch_si
 
     training_time = end_time - start_time
 
-    print ('The training took %.2f minutes' % (training_time/60.))
+    print ('The training took %.2f minutes \n' % (training_time/60.))
 
     W_learnt = flow.W.get_value(borrow = True)
     b_learnt = flow.b.get_value(borrow = True)
@@ -172,33 +193,69 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000, batch_si
     fnormW = np.linalg.norm(W - W_learnt)/np.linalg.norm(W + W_learnt)
     fnormb = np.linalg.norm(b - b_learnt)/np.linalg.norm(b + b_learnt)
 
-    print ('Comparing the parameters learnt...')
-    fig, ax = plt.subplots(3)
-    fig.tight_layout()
-    ax[0].plot(W.reshape(-1,1)[0:100], 'b')
-    ax[0].plot(W_learnt.reshape(-1,1)[0:100], 'r')
+    print ('Comparing the parameters learnt... \n')
+    # fig, ax = plt.subplots(3)
+    # fig.tight_layout()
+    # ax[0].plot(W.reshape(-1,1)[0:100], 'b')
+    # ax[0].plot(W_learnt.reshape(-1,1)[0:100], 'r')
+    # # ax[0].set_title('W')
     # ax[0].set_title('W')
-    ax[0].set_title('W')
-    ax[0].legend(['W', 'Learnt W'])
+    # ax[0].legend(['W', 'Learnt W'])
+    # # ax[0].text(0.2, 0.1, 'F-norm(W): ' + str(fnormW), ha='center', va='center', transform = ax[0].transAxes, fontsize = 10)
+    # # ax[0].text(0.8, 0.1, 'Time taken: ' + str(training_time/60.), ha='center',  va='center', transform = ax[0].transAxes, fontsize = 10)
+    # ax[1].plot(b.reshape(-1,1), 'b')
+    # ax[1].plot(b_learnt.reshape(-1,1),'r')
+    # # ax[1].set_title('b')
+    # ax[1].set_title('b')
+    # ax[1].legend(['b', 'Learnt b'])
+    # # ax[1].text(0.2, 0.1, 'F-norm(b): ' + str(fnormb), ha='center', va='center', transform = ax[1].transAxes, fontsize = 10)
+    # ax[2].axis('off')
+    # ax[2].text(0.2, 0.8, 'F-norm(W): ' + str(fnormW), ha='center', va='center', transform = ax[2].transAxes, fontsize = 10)
+    # ax[2].text(0.2, 0.7, 'F-norm(b): ' + str(fnormb), ha='center', va='center', transform = ax[2].transAxes, fontsize = 10)
+    # ax[2].text(0.2, 0.6, 'Time taken: ' + str(training_time/60.), ha='center',  va='center', transform = ax[2].transAxes, fontsize = 10)
+
+    fig, ax = plt.subplots(2, 2, figsize=(20,10))
+    fig.tight_layout()
+
+    ax[0,0].plot(W.reshape(-1,1)[0:100], 'b')
+    ax[0,0].plot(W_learnt.reshape(-1,1)[0:100], 'r')
+    # ax[0].set_title('W')
+    ax[0,0].set_title('W')
+    ax[0,0].legend(['W', 'Learnt W'])
     # ax[0].text(0.2, 0.1, 'F-norm(W): ' + str(fnormW), ha='center', va='center', transform = ax[0].transAxes, fontsize = 10)
     # ax[0].text(0.8, 0.1, 'Time taken: ' + str(training_time/60.), ha='center',  va='center', transform = ax[0].transAxes, fontsize = 10)
-    ax[1].plot(b.reshape(-1,1), 'b')
-    ax[1].plot(b_learnt.reshape(-1,1),'r')
+    ax[0,1].plot(b.reshape(-1,1), 'b')
+    ax[0,1].plot(b_learnt.reshape(-1,1),'r')
     # ax[1].set_title('b')
-    ax[1].set_title('b')
-    ax[1].legend(['b', 'Learnt b'])
+    ax[0,1].set_title('b')
+    ax[0,1].legend(['b', 'Learnt b'])
     # ax[1].text(0.2, 0.1, 'F-norm(b): ' + str(fnormb), ha='center', va='center', transform = ax[1].transAxes, fontsize = 10)
-    ax[2].axis('off')
-    ax[2].text(0.2, 0.8, 'F-norm(W): ' + str(fnormW), ha='center', va='center', transform = ax[2].transAxes, fontsize = 10)
-    ax[2].text(0.2, 0.7, 'F-norm(b): ' + str(fnormb), ha='center', va='center', transform = ax[2].transAxes, fontsize = 10)
-    ax[2].text(0.2, 0.6, 'Time taken: ' + str(training_time/60.), ha='center',  va='center', transform = ax[2].transAxes, fontsize = 10)
+
+    ax[1,0].plot(fnormW_history, 'r.', fnormb_history, 'b.', cost_history, 'g.', f_history, 'c.')
+    ax[1,0].legend(['fnormW', 'fnormb', 'cost', 'fscore'])
+    ax[1,0].set_xlabel('Epochs')
+    ax[1,0].set_ylabel('Value')
+
+    ax[1,1].axis('off')
+    ax[1,1].text(0.5, 0.7, 'F-norm(W): ' + str(fnormW), ha='center', va='center', transform = ax[1,1].transAxes, fontsize = 10)
+    ax[1,1].text(0.5, 0.6, 'F-norm(b): ' + str(fnormb), ha='center', va='center', transform = ax[1,1].transAxes, fontsize = 10)
+    ax[1,1].text(0.5, 0.5, 'Time taken: ' + str(training_time/60.), ha='center',  va='center', transform = ax[1,1].transAxes, fontsize = 10)
 
 
     E = n_epochs // 1000
 
-    savefilename = sample[:-4] + '-' + '{0:.0e}'.format(learning_rate) + '-' + \
-    '{0:.0e}'.format(epsilon) + '-' + str(E) + 'K-' + str(batch_size) + '-' + \
-    flavour + '-'
+    if flow.gpu:
+        savefilename = sample[:-4] + '-' + '{0:.0e}'.format(learning_rate) + '-' + \
+        '{0:.0e}'.format(epsilon) + '-' + str(E) + 'K-' + str(batch_size) + '-' + \
+        flavour + '-' + 'gpu' + '-'
+    else:
+        savefilename = sample[:-4] + '-' + '{0:.0e}'.format(learning_rate) + '-' + \
+        '{0:.0e}'.format(epsilon) + '-' + str(E) + 'K-' + str(batch_size) + '-' + \
+        flavour + '-' + 'cpu' + '-'
+
+    # savefilename = sample[:-4] + '-' + '{0:.0e}'.format(learning_rate) + '-' + \
+    # '{0:.0e}'.format(epsilon) + '-' + str(E) + 'K-' + str(batch_size) + '-' + \
+    # flavour + '-'
 
     print ('Frobenius norm (W): %f' % fnormW)
     print ('Frobenius norm (b): %f' % fnormb)
@@ -208,12 +265,12 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000, batch_si
         i += 1
 
     plt.savefig('{}{:d}.png'.format(savefilename, i))
-    print ('Saving plots to ' + '{}{:d}.png'.format(savefilename, i))
-    print ('Naming convention: units-sample_size-learning_rate-epsilon-epochs-batchsize-runs')
+    print ('Saving plots to ' + '{}{:d}.png \n'.format(savefilename, i))
+    print ('Naming convention: units-sample_size-learning_rate-epsilon-epochs-batchsize-processor-runs \n')
 
     return W_learnt, b_learnt
 
 
 if __name__ == "__main__":
-    sgd(units = 32, learning_rate = 1e-3, epsilon = 1e-2, n_epochs = 5000, batch_size = 16,\
-      sample = '32-50K.npy', flavour = 'nesterov')
+    sgd(units = 32, learning_rate = 1e-5, epsilon = 1, n_epochs = 10, batch_size = 16,\
+      sample = '32-50K.npy', gpu = False, flavour = 'nesterov')
