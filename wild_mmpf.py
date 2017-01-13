@@ -262,7 +262,7 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000,\
     ax[0,1].legend(['b', 'Learnt b'])
     # ax[1].text(0.2, 0.1, 'F-norm(b): ' + str(fnormb), ha='center', va='center', transform = ax[1].transAxes, fontsize = 10)
 
-    ax[1,0].plot(fnormW_history, 'r.', fnormb_history, 'b.', cost_history, 'g.', f_history, 'c.', mseW_history, 'g.', mseb_history, 'y.')
+    ax[1,0].plot(fnormW_history, 'r.', fnormb_history, 'b.', cost_history, 'g.', f_history, 'c.', mseW_history, 'k.', mseb_history, 'y.')
     ax[1,0].legend(['fnormW', 'fnormb', 'cost', 'fscore', 'mseW', 'mseb'])
     # ax[1,0].plot(cost_history, 'g.', f_history, 'c.', mseW_history, 'g.', mseb_history, 'y.')
     # ax[1,0].legend(['cost', 'fscore', 'mseW', 'mseb'])
@@ -272,11 +272,11 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000,\
 
 
     ax[1,1].axis('off')
-    ax[1,1].text(0.5, 0.7, 'F-norm(W): ' + str(fnormW), ha='center', va='center', transform = ax[1,1].transAxes, fontsize = 10)
-    ax[1,1].text(0.5, 0.6, 'F-norm(b): ' + str(fnormb), ha='center', va='center', transform = ax[1,1].transAxes, fontsize = 10)
-    ax[1,1].text(0.5, 0.8, 'Best epoch: ' + str(best_epoch), ha='center', va='center', transform = ax[1,1].transAxes, fontsize = 10)
-    ax[1,1].text(0.5, 0.5, 'Cost for best epoch: ' + str(best_cost), ha='center', va='center', transform = ax[1,1].transAxes, fontsize = 10)
-    ax[1,1].text(0.5, 0.4, 'Time taken: ' + str(training_time/60.), ha='center',  va='center', transform = ax[1,1].transAxes, fontsize = 10)
+    ax[1,1].text(0.5, 0.7, 'F-norm(W): ' + str(fnormW), ha='center', va='center', transform = ax[1,1].transAxes, fontsize = 15)
+    ax[1,1].text(0.5, 0.6, 'F-norm(b): ' + str(fnormb), ha='center', va='center', transform = ax[1,1].transAxes, fontsize = 15)
+    ax[1,1].text(0.5, 0.8, 'Best epoch: ' + str(best_epoch), ha='center', va='center', transform = ax[1,1].transAxes, fontsize = 15)
+    ax[1,1].text(0.5, 0.5, 'Cost for best epoch: ' + str(best_cost), ha='center', va='center', transform = ax[1,1].transAxes, fontsize = 15)
+    ax[1,1].text(0.5, 0.4, 'Time taken: ' + str(training_time/60.), ha='center',  va='center', transform = ax[1,1].transAxes, fontsize = 15)
 
 
 
@@ -311,5 +311,5 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000,\
 
 
 if __name__ == "__main__":
-    sgd(units = 32, learning_rate = 1e-3, epsilon = 1, n_epochs = 10, batch_size = 16,\
+    sgd(units = 32, learning_rate = 1e-3, epsilon = 1, n_epochs = 1000, batch_size = 16,\
       sample = '32-50K.npy', gpu = False, flavour = 'vanilla')

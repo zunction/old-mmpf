@@ -237,9 +237,9 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000,\
     ax[1,0].set_ylabel('Value')
 
     ax[1,1].axis('off')
-    ax[1,1].text(0.5, 0.7, 'F-norm(W): ' + str(fnormW), ha='center', va='center', transform = ax[1,1].transAxes, fontsize = 10)
-    ax[1,1].text(0.5, 0.6, 'F-norm(b): ' + str(fnormb), ha='center', va='center', transform = ax[1,1].transAxes, fontsize = 10)
-    ax[1,1].text(0.5, 0.5, 'Time taken: ' + str(training_time/60.), ha='center',  va='center', transform = ax[1,1].transAxes, fontsize = 10)
+    ax[1,1].text(0.5, 0.7, 'F-norm(W): ' + str(fnormW), ha='center', va='center', transform = ax[1,1].transAxes, fontsize = 15)
+    ax[1,1].text(0.5, 0.6, 'F-norm(b): ' + str(fnormb), ha='center', va='center', transform = ax[1,1].transAxes, fontsize = 15)
+    ax[1,1].text(0.5, 0.5, 'Time taken: ' + str(training_time/60.), ha='center',  va='center', transform = ax[1,1].transAxes, fontsize = 15)
 
 
     E = n_epochs // 1000
