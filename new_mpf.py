@@ -34,15 +34,15 @@ class mpf(object):
         # np.fill_diagonal(R, 0)
 
         if not W:
-            initial_W = np.asarray(R, dtype = theano.config.floatX)
-            W = theano.shared(initial_W, name = 'W', borrow = True)
+            initial_U = np.asarray(np.random.rand(self.n, self.n), dtype = theano.config.floatX)
+            U = theano.shared(U, name = 'U', borrow = True)
 
         if not b:
-            initial_b = np.asarray(np.random.rand(n), dtype = theano.config.floatX)
+            initial_b = np.asarray(np.random.rand(self.n), dtype = theano.config.floatX)
             b = theano.shared(initial_b, name = 'b', borrow = True)
 
 
-        self.W = W
+        self.W = T.fill_diagonal(0.5 * (U + T.transpose(U)), 0)
         self.b = b
         self.gpu = gpu
 
