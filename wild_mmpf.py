@@ -118,6 +118,7 @@ class mpf(object):
 
         return cost, updates
 
+    # def Kcost_adagrad():
 
 def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000,\
     batch_size = 16,  sample = '16-50K.npy', gpu = False, flavour = 'vanilla'):
@@ -311,5 +312,5 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000,\
 
 
 if __name__ == "__main__":
-    sgd(units = 32, learning_rate = 1e-3, epsilon = 1, n_epochs = 1000, batch_size = 16,\
-      sample = '32-50K.npy', gpu = False, flavour = 'vanilla')
+    sgd(units = 32, learning_rate = 1e-7, epsilon = 1, n_epochs = 1000, batch_size = 16,\
+      sample = '32-50K.npy', gpu = False, flavour = 'nesterov')
