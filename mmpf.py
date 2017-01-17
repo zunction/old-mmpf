@@ -58,13 +58,21 @@ class mpf(object):
         Returns the cost of vanilla SGD.
         """
 
-        cost = T.mean(T.exp((0.5 - self.x) * (T.dot(self.x, self.W) + self.b))) * epsilon
-        Wgrad = T.grad(cost, self.W)
-        bgrad = T.grad(cost, self.b)
+        # cost = T.mean(T.exp((0.5 - self.x) * (T.dot(self.x, self.W) + self.b))) * epsilon
+        # Wgrad = T.grad(cost, self.W)
+        # bgrad = T.grad(cost, self.b)
+        #
+        # # Wupdate = T.fill_diagonal(0.5 * ((self.W - learning_rate * Wgrad) + (self.W - learning_rate * Wgrad).T), 0)
+        # # updates = [(self.W, Wupdate), (self.b, self.b - learning_rate * bgrad )]
+        # updates = [(self.W, T.fill_diagonal(self.W - learning_rate * Wgrad, 0)), (self.b, self.b - learning_rate * bgrad )]
 
-        # Wupdate = T.fill_diagonal(0.5 * ((self.W - learning_rate * Wgrad) + (self.W - learning_rate * Wgrad).T), 0)
-        # updates = [(self.W, Wupdate), (self.b, self.b - learning_rate * bgrad )]
-        updates = [(self.W, T.fill_diagonal(self.W - learning_rate * Wgrad, 0)), (self.b, self.b - learning_rate * bgrad )]
+        cost = T.mean(T.exp((0.5 - self.x) * \
+        (T.dot(self.x, T.fill_diagonal(self.W, 0)) + self.b))) * epsilon
+        gparams = T.grad(cost, self.params)
+
+        updates = [(param, param - learning_rate * gparam) \
+        for param, gparam in zip(self.params, gparams)]
+
         return cost, updates
 
 
@@ -73,9 +81,25 @@ class mpf(object):
         Returns the cost of SGD with Momentum.
         """
 
-        cost = T.mean(T.exp((0.5 - self.x) * (T.dot(self.x, self.W) + self.b)))
-        Wgrad = T.grad(cost, self.W)
-        bgrad = T.grad(cost, self.b)
+        # cost = T.mean(T.exp((0.5 - self.x) * (T.dot(self.x, self.W) + self.b)))
+        # Wgrad = T.grad(cost, self.W)
+        # bgrad = T.grad(cost, self.b)
+        #
+        # if self.gpu:
+        #     vW = theano.shared(np.zeros(self.W.eval().shape).astype(np.float32))
+        #     vb = theano.shared(np.zeros(self.b.eval().shape).astype(np.float32))
+        # else:
+        #     vW = theano.shared(np.zeros(self.W.eval().shape))
+        #     vb = theano.shared(np.zeros(self.b.eval().shape))
+        #
+        # vW_new = gamma * vW + learning_rate * Wgrad
+        # vb_new = gamma * vb + learning_rate * bgrad
+        # Wupdate = T.fill_diagonal(0.5 * ((self.W - vW_new) + (self.W - vW_new).T), 0)
+        # updates = [(self.W, Wupdate), (self.b, self.b - vb_new), (vW, vW_new), (vb, vb_new)]
+
+        cost = T.mean(T.exp((0.5 - self.x) * (T.dot(self.x, T.fill_diagonal(self.W, 0)) + self.b)))
+
+        gparams = T.grad(cost, self.params)
 
         if self.gpu:
             vW = theano.shared(np.zeros(self.W.eval().shape).astype(np.float32))
@@ -84,10 +108,14 @@ class mpf(object):
             vW = theano.shared(np.zeros(self.W.eval().shape))
             vb = theano.shared(np.zeros(self.b.eval().shape))
 
-        vW_new = gamma * vW + learning_rate * Wgrad
-        vb_new = gamma * vb + learning_rate * bgrad
-        Wupdate = T.fill_diagonal(0.5 * ((self.W - vW_new) + (self.W - vW_new).T), 0)
-        updates = [(self.W, Wupdate), (self.b, self.b - vb_new), (vW, vW_new), (vb, vb_new)]
+        momentum = [vW, vb]
+        momentum_updates = [(v, gamma * v + learning_rate * gparam) \
+        for v, gparam in zip(momentum, gparams)]
+
+        updates = [(param, param - v) \
+        for param, v in zip(self.params, momentum)]
+
+        updates = updates + momentum_updates
 
         return cost, updates
 
@@ -104,6 +132,37 @@ class mpf(object):
             vW = theano.shared(np.zeros(self.W.eval().shape))
             vb = theano.shared(np.zeros(self.b.eval().shape))
 
+        # nextW = self.W - gamma * vW
+        # nextb = self.b - gamma * vb
+        #
+        # cost = T.mean(T.exp((0.5 - self.x) * (T.dot(self.x, nextW) + nextb)))
+        # Wgrad = T.grad(cost, nextW)
+        # bgrad = T.grad(cost, nextb)
+        #
+        # vW_new = gamma * vW + learning_rate * Wgrad
+        # vb_new = gamma * vb + learning_rate * bgrad
+        # Wupdate = T.fill_diagonal(0.5 * ((self.W - vW_new) + (self.W - vW_new).T), 0)
+        # updates = [(self.W, Wupdate), (self.b, self.b - vb_new), (vW, vW_new), (vb, vb_new)]
+
+        next = [nextW, nextb]
+        next_updates = [(n, param - gamma * n)\
+         for n, param in zip(next, self.params)]
+
+
+        nextW = self.W - gamma * vW
+        nextb = self.b - gamma * vb
+
+        cost = T.mean(T.exp((0.5 - self.x) * (T.dot(self.x,\
+                T.fill_diagonal(nextW, 0)) + nextb)))
+
+        Wgrad = T.grad(cost, nextW)
+        bgrad = T.grad(cost, nextb)
+
+        momentum = [vW, vb]
+        momentum_updates = [(v, gamma * v + learning_rate * gparam) \
+        for v, gparam in zip(momentum, gparams)]
+
+
         nextW = self.W - gamma * vW
         nextb = self.b - gamma * vb
 
@@ -116,6 +175,7 @@ class mpf(object):
         Wupdate = T.fill_diagonal(0.5 * ((self.W - vW_new) + (self.W - vW_new).T), 0)
         updates = [(self.W, Wupdate), (self.b, self.b - vb_new), (vW, vW_new), (vb, vb_new)]
 
+
         return cost, updates
 
     # def Kcost_adagrad():
@@ -125,13 +185,13 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000,\
     """
     Perform stochastic gradient descent on MPF, plots parameters, computes Froenius norm and time taken.
     """
-    print ('Loading '+ 'sample' + '...\n')
+    print ('Loading '+ 'sample' + '...')
 
     dataset = load_data(sample)
 
     n_dataset_batches = dataset.get_value(borrow = True).shape[0] // batch_size
 
-    print ('Building the model with flavour ' + flavour + '...\n')
+    print ('Building the model with flavour ' + flavour + '...')
 
     index = T.lscalar()
     x = T.matrix('x')
@@ -155,15 +215,15 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000,\
     best_b = [None, np.inf]
     best_cost = None
     best_epoch = None
-    f = np.inf
+    best_mse = np.inf
 
     W = np.load(sample[0:2] + '-' + 'W' + '.npy')
     b = np.load(sample[0:2] + '-' + 'b' + '.npy')
 
-    fnormW_history = []
-    fnormb_history = []
+    # fnormW_history = []
+    # fnormb_history = []
     cost_history = []
-    f_history = []
+    mse_history = []
     mseW_history = []
     mseb_history = []
 
@@ -175,106 +235,72 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000,\
 
         W_learnt = flow.W.get_value(borrow = True)
         b_learnt = flow.b.get_value(borrow = True)
-        fnormW = np.linalg.norm(W - W_learnt)/np.linalg.norm(W + W_learnt)
-        fnormb = np.linalg.norm(b - b_learnt)/np.linalg.norm(b + b_learnt)
-        f_current = (fnormW * fnormb)/(fnormW + fnormb)
+
         mseW = np.linalg.norm(W - W_learnt)/ (units**2 - units)
         mseb = np.linalg.norm(b - b_learnt)/ units
+        mse = (mseW * mseb)/(mseW + mseb)
 
-        if f_current < f:
-            f = f_current
+        cost_history.append(np.mean(c, dtype='float64'))
+        mse_history.append(mse)
+        mseW_history.append(mseW)
+        mseb_history.append(mseb)
+
+        if mse < best_mse:
+            best_mse = mse
             best_W[0] = flow.W.get_value(borrow = True)
-            best_W[1] = fnormW
+            best_W[1] = mseW
             best_b[0] = flow.b.get_value(borrow = True)
-            best_b[1] = fnormb
+            best_b[1] = mseb
             best_cost = np.mean(c, dtype='float64')
             best_epoch = epoch
 
-        fnormW_history.append(fnormW)
-        fnormb_history.append(fnormb)
-        cost_history.append(np.mean(c, dtype='float64'))
-        f_history.append(f_current)
-        mseW_history.append(mseW)
-        mseb_history.append(mseb)
 
         # print ('Training epoch %d/%d, Cost: %f, F-normW: %.2f, F-normb: %.2f, Time Elasped: %.2f'\
         #  % (epoch, n_epochs, np.mean(c, dtype='float64'), \
         # fnormW, fnormb,  (current_time - start_time)/60) )
-
-        print ('Training epoch %d/%d, Cost: %f, F-normW: %.2f, F-normb: %.2f, mseW: %.5f, mseb: %.5f, Time Elasped: %.2f '\
+        print ()
+        print ('Training epoch %d/%d, Cost: %f mseW: %.5f, mseb: %.5f, mse: %.5f Time Elasped: %.2f '\
          % (epoch, n_epochs, np.mean(c, dtype='float64'), \
-        fnormW, fnormb, mseW, mseb,  (current_time - start_time)/60) )
+         mseW, mseb, mse, (current_time - start_time)/60) )
 
 
     end_time = timeit.default_timer()
 
     training_time = end_time - start_time
 
-    print ('The training took %.2f minutes\n' % (training_time/60.))
+    print ('The training took %.2f minutes' % (training_time/60.))
 
-    # W_learnt = flow.W.get_value(borrow = True)
-    # b_learnt = flow.b.get_value(borrow = True)
-
-    # fnormW = np.linalg.norm(W - W_learnt)/np.linalg.norm(W + W_learnt)
-    # fnormb = np.linalg.norm(b - b_learnt)/np.linalg.norm(b + b_learnt)
 
     W_learnt = best_W[0]
-    fnormW = best_W[1]
+    mseW = best_W[1]
     b_learnt = best_b[0]
-    fnormb = best_b[1]
+    mseb = best_b[1]
 
-    print ('Comparing the parameters learnt... \n')
-    # fig, ax = plt.subplots(3)
-    # fig.tight_layout()
-    # ax[0].plot(W.reshape(-1,1)[0:100], 'b')
-    # ax[0].plot(W_learnt.reshape(-1,1)[0:100], 'r')
-    # # ax[0].set_title('W')
-    # ax[0].set_title('W')
-    # ax[0].legend(['W', 'Learnt W'])
-    # # ax[0].text(0.2, 0.1, 'F-norm(W): ' + str(fnormW), ha='center', va='center', transform = ax[0].transAxes, fontsize = 10)
-    # # ax[0].text(0.8, 0.1, 'Time taken: ' + str(training_time/60.), ha='center',  va='center', transform = ax[0].transAxes, fontsize = 10)
-    # ax[1].plot(b.reshape(-1,1), 'b')
-    # ax[1].plot(b_learnt.reshape(-1,1),'r')
-    # # ax[1].set_title('b')
-    # ax[1].set_title('b')
-    # ax[1].legend(['b', 'Learnt b'])
-    # # ax[1].text(0.2, 0.1, 'F-norm(b): ' + str(fnormb), ha='center', va='center', transform = ax[1].transAxes, fontsize = 10)
-    # ax[2].axis('off')
-    # ax[2].text(0.2, 0.7, 'F-norm(W): ' + str(fnormW), ha='center', va='center', transform = ax[2].transAxes, fontsize = 10)
-    # ax[2].text(0.2, 0.6, 'F-norm(b): ' + str(fnormb), ha='center', va='center', transform = ax[2].transAxes, fontsize = 10)
-    # ax[2].text(0.2, 0.8, 'Best epoch: ' + str(best_epoch), ha='center', va='center', transform = ax[2].transAxes, fontsize = 10)
-    # ax[2].text(0.2, 0.5, 'Cost for best epoch: ' + str(best_cost), ha='center', va='center', transform = ax[2].transAxes, fontsize = 10)
-    # ax[2].text(0.2, 0.4, 'Time taken: ' + str(training_time/60.), ha='center',  va='center', transform = ax[2].transAxes, fontsize = 10)
+    print ('Comparing the parameters learnt... ')
 
     fig, ax = plt.subplots(2, 2, figsize=(20,10))
     fig.tight_layout()
 
     ax[0,0].plot(W.reshape(-1,1)[0:100], 'b')
     ax[0,0].plot(W_learnt.reshape(-1,1)[0:100], 'r')
-    # ax[0].set_title('W')
     ax[0,0].set_title('W')
     ax[0,0].legend(['W', 'Learnt W'])
-    # ax[0].text(0.2, 0.1, 'F-norm(W): ' + str(fnormW), ha='center', va='center', transform = ax[0].transAxes, fontsize = 10)
-    # ax[0].text(0.8, 0.1, 'Time taken: ' + str(training_time/60.), ha='center',  va='center', transform = ax[0].transAxes, fontsize = 10)
+
     ax[0,1].plot(b.reshape(-1,1), 'b')
     ax[0,1].plot(b_learnt.reshape(-1,1),'r')
-    # ax[1].set_title('b')
     ax[0,1].set_title('b')
     ax[0,1].legend(['b', 'Learnt b'])
-    # ax[1].text(0.2, 0.1, 'F-norm(b): ' + str(fnormb), ha='center', va='center', transform = ax[1].transAxes, fontsize = 10)
 
-    ax[1,0].plot(fnormW_history, 'r.', fnormb_history, 'b.', cost_history, 'g.', f_history, 'c.', mseW_history, 'k.', mseb_history, 'y.')
-    ax[1,0].legend(['fnormW', 'fnormb', 'cost', 'fscore', 'mseW', 'mseb'])
-    # ax[1,0].plot(cost_history, 'g.', f_history, 'c.', mseW_history, 'g.', mseb_history, 'y.')
-    # ax[1,0].legend(['cost', 'fscore', 'mseW', 'mseb'])
+    ax[1,0].plot(cost_history, 'r.', mseW_history, 'b.', mseb_history, 'g.', mse_history, 'c.')
+    ax[1,0].legend(['cost', 'mseW', 'mseb', 'mse'])
     ax[1,0].set_xlabel('Epochs')
     ax[1,0].set_ylabel('Value')
     ax[1,0].set_ylim([-0.05,1.05])
 
 
     ax[1,1].axis('off')
-    ax[1,1].text(0.5, 0.7, 'F-norm(W): ' + str(fnormW), ha='center', va='center', transform = ax[1,1].transAxes, fontsize = 15)
-    ax[1,1].text(0.5, 0.6, 'F-norm(b): ' + str(fnormb), ha='center', va='center', transform = ax[1,1].transAxes, fontsize = 15)
+    ax[1,1].text(0.5, 0.7, 'MSE(W): ' + str(mseW), ha='center', va='center', transform = ax[1,1].transAxes, fontsize = 15)
+    ax[1,1].text(0.5, 0.6, 'MSE(b): ' + str(mseb), ha='center', va='center', transform = ax[1,1].transAxes, fontsize = 15)
     ax[1,1].text(0.5, 0.8, 'Best epoch: ' + str(best_epoch), ha='center', va='center', transform = ax[1,1].transAxes, fontsize = 15)
     ax[1,1].text(0.5, 0.5, 'Cost for best epoch: ' + str(best_cost), ha='center', va='center', transform = ax[1,1].transAxes, fontsize = 15)
     ax[1,1].text(0.5, 0.4, 'Time taken: ' + str(training_time/60.), ha='center',  va='center', transform = ax[1,1].transAxes, fontsize = 15)
@@ -293,24 +319,20 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000,\
         flavour + '-' + 'cpu' + '-'
 
 
-    print ('Frobenius norm (W): %f' % fnormW)
-    print ('Frobenius norm (b): %f' % fnormb)
-    # print ('MSE (W): %f' % fnormW)
-    # print ('MSE (b): %f' % fnormb)
-
-
+    print ('MSE (W): %f' % mseW)
+    print ('MSE (b): %f' % mseb)
 
     i = 0
     while os.path.exists('{}{:d}.png'.format(savefilename, i)):
         i += 1
 
     plt.savefig('{}{:d}.png'.format(savefilename, i))
-    print ('Saving plots to ' + '{}{:d}.png \n'.format(savefilename, i))
-    print ('Naming convention: units-sample_size-learning_rate-epsilon-epochs-batchsize-processor-runs \n')
+    print ('Saving plots to ' + '{}{:d}.png '.format(savefilename, i))
+    print ('Naming convention: units-sample_size-learning_rate-epsilon-epochs-batchsize-processor-runs ')
 
     return W_learnt, b_learnt
 
 
 if __name__ == "__main__":
-    sgd(units = 32, learning_rate = 1e-5, epsilon = 1, n_epochs = 1000, batch_size = 16,\
-      sample = '32-50K.npy', gpu = False, flavour = 'nesterov')
+    sgd(units = 32, learning_rate = 1e-3, epsilon = 1, n_epochs = 1000, batch_size = 16,\
+      sample = '32-50K.npy', gpu = False, flavour = 'vanilla')
