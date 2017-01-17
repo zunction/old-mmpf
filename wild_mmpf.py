@@ -62,9 +62,9 @@ class mpf(object):
         Wgrad = T.grad(cost, self.W)
         bgrad = T.grad(cost, self.b)
 
-        Wupdate = T.fill_diagonal(0.5 * ((self.W - learning_rate * Wgrad) + (self.W - learning_rate * Wgrad).T), 0)
-        updates = [(self.W, Wupdate), (self.b, self.b - learning_rate * bgrad )]
-
+        # Wupdate = T.fill_diagonal(0.5 * ((self.W - learning_rate * Wgrad) + (self.W - learning_rate * Wgrad).T), 0)
+        # updates = [(self.W, Wupdate), (self.b, self.b - learning_rate * bgrad )]
+        updates = [(self.W, T.fill_diagonal(self.W - learning_rate * Wgrad, 0)), (self.b, self.b - learning_rate * bgrad )]
         return cost, updates
 
 
@@ -178,7 +178,7 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000,\
         fnormW = np.linalg.norm(W - W_learnt)/np.linalg.norm(W + W_learnt)
         fnormb = np.linalg.norm(b - b_learnt)/np.linalg.norm(b + b_learnt)
         f_current = (fnormW * fnormb)/(fnormW + fnormb)
-        mseW = np.linalg.norm(W - W_learnt)/ units**2
+        mseW = np.linalg.norm(W - W_learnt)/ (units**2 - units)
         mseb = np.linalg.norm(b - b_learnt)/ units
 
         if f_current < f:
@@ -312,5 +312,5 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000,\
 
 
 if __name__ == "__main__":
-    sgd(units = 32, learning_rate = 1e-3, epsilon = 1, n_epochs = 1000, batch_size = 16,\
-      sample = '32-50K.npy', gpu = False, flavour = 'vanilla')
+    sgd(units = 32, learning_rate = 1e-5, epsilon = 1, n_epochs = 1000, batch_size = 16,\
+      sample = '32-50K.npy', gpu = False, flavour = 'nesterov')
