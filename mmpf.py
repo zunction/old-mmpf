@@ -114,6 +114,18 @@ class mpf(object):
             vW = theano.shared(np.zeros(self.W.eval().shape))
             vb = theano.shared(np.zeros(self.b.eval().shape))
 
+        # nextW = self.W - gamma * vW
+        # nextb = self.b - gamma * vb
+        #
+        # cost = T.mean(T.exp((0.5 - self.x) * (T.dot(self.x, nextW) + nextb)))
+        # Wgrad = T.grad(cost, nextW)
+        # bgrad = T.grad(cost, nextb)
+        #
+        # vW_new = gamma * vW + learning_rate * Wgrad
+        # vb_new = gamma * vb + learning_rate * bgrad
+        # Wupdate = T.fill_diagonal(0.5 * ((self.W - vW_new) + (self.W - vW_new).T), 0)
+        # updates = [(self.W, Wupdate), (self.b, self.b - vb_new), (vW, vW_new), (vb, vb_new)]
+
         nextW = self.W - gamma * vW
         nextb = self.b - gamma * vb
 
@@ -177,6 +189,8 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000,\
     W = np.load(sample[0:2] + '-' + 'W' + '.npy')
     b = np.load(sample[0:2] + '-' + 'b' + '.npy')
 
+    # fnormW_history = []
+    # fnormb_history = []
     cost_history = []
     mse_history = []
     mseW_history = []
@@ -209,6 +223,11 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000,\
             best_cost = np.mean(c, dtype='float64')
             best_epoch = epoch
 
+
+        # print ('Training epoch %d/%d, Cost: %f, F-normW: %.2f, F-normb: %.2f, Time Elasped: %.2f'\
+        #  % (epoch, n_epochs, np.mean(c, dtype='float64'), \
+        # fnormW, fnormb,  (current_time - start_time)/60) )
+        print ()
         print ('Training epoch %d/%d, Cost: %f mseW: %.5f, mseb: %.5f, mse: %.5f Time Elasped: %.2f '\
          % (epoch, n_epochs, np.mean(c, dtype='float64'), \
          mseW, mseb, mse, (current_time - start_time)/60) )
@@ -273,7 +292,7 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000,\
     print ('MSE (b): %f' % mseb)
 
     i = 0
-    while os.path.exists('{}{:d}.png'.format(savefilename, igit
+    while os.path.exists('{}{:d}.png'.format(savefilename, i)):
         i += 1
 
     plt.savefig('{}{:d}.png'.format(savefilename, i))
