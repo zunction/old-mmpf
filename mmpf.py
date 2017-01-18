@@ -58,13 +58,8 @@ class mpf(object):
         Returns the cost of vanilla SGD.
         """
 
-        # cost = T.mean(T.exp((0.5 - self.x) * (T.dot(self.x, self.W) + self.b))) * epsilon
-        # Wgrad = T.grad(cost, self.W)
-        # bgrad = T.grad(cost, self.b)
-        #
-        # # Wupdate = T.fill_diagonal(0.5 * ((self.W - learning_rate * Wgrad) + (self.W - learning_rate * Wgrad).T), 0)
-        # # updates = [(self.W, Wupdate), (self.b, self.b - learning_rate * bgrad )]
-        # updates = [(self.W, T.fill_diagonal(self.W - learning_rate * Wgrad, 0)), (self.b, self.b - learning_rate * bgrad )]
+        print ('Using Vanilla with  learning rate = %f, epsilon = %f'\
+         % (learning_rate, epsilon))
 
         cost = T.mean(T.exp((0.5 - self.x) * \
         (T.dot(self.x, T.fill_diagonal(self.W, 0)) + self.b))) * epsilon
@@ -80,22 +75,8 @@ class mpf(object):
         """
         Returns the cost of SGD with Momentum.
         """
-
-        # cost = T.mean(T.exp((0.5 - self.x) * (T.dot(self.x, self.W) + self.b)))
-        # Wgrad = T.grad(cost, self.W)
-        # bgrad = T.grad(cost, self.b)
-        #
-        # if self.gpu:
-        #     vW = theano.shared(np.zeros(self.W.eval().shape).astype(np.float32))
-        #     vb = theano.shared(np.zeros(self.b.eval().shape).astype(np.float32))
-        # else:
-        #     vW = theano.shared(np.zeros(self.W.eval().shape))
-        #     vb = theano.shared(np.zeros(self.b.eval().shape))
-        #
-        # vW_new = gamma * vW + learning_rate * Wgrad
-        # vb_new = gamma * vb + learning_rate * bgrad
-        # Wupdate = T.fill_diagonal(0.5 * ((self.W - vW_new) + (self.W - vW_new).T), 0)
-        # updates = [(self.W, Wupdate), (self.b, self.b - vb_new), (vW, vW_new), (vb, vb_new)]
+        print ('Using Momentum with gamma = %f, learning rate = %f, epsilon = %f'\
+         % (gamma, learning_rate, epsilon))
 
         cost = T.mean(T.exp((0.5 - self.x) * (T.dot(self.x, T.fill_diagonal(self.W, 0)) + self.b)))
 
@@ -124,7 +105,8 @@ class mpf(object):
         """
         Returns the cost of SGD with Nesterov's accelerated gradient.
         """
-
+        print ('Using Nesterov with gamma = %f, learning rate = %f, epsilon = %f'\
+         % (gamma, learning_rate, epsilon))
         if self.gpu:
             vW = theano.shared(np.zeros(self.W.eval().shape).astype(np.float32))
             vb = theano.shared(np.zeros(self.b.eval().shape).astype(np.float32))
@@ -144,11 +126,6 @@ class mpf(object):
         # Wupdate = T.fill_diagonal(0.5 * ((self.W - vW_new) + (self.W - vW_new).T), 0)
         # updates = [(self.W, Wupdate), (self.b, self.b - vb_new), (vW, vW_new), (vb, vb_new)]
 
-        next = [nextW, nextb]
-        next_updates = [(n, param - gamma * n)\
-         for n, param in zip(next, self.params)]
-
-
         nextW = self.W - gamma * vW
         nextb = self.b - gamma * vb
 
@@ -158,23 +135,15 @@ class mpf(object):
         Wgrad = T.grad(cost, nextW)
         bgrad = T.grad(cost, nextb)
 
+        gparams = [Wgrad, bgrad]
         momentum = [vW, vb]
-        momentum_updates = [(v, gamma * v + learning_rate * gparam) \
+        momentum_updates = [(v, gamma * v + learning_rate * gparam)\
         for v, gparam in zip(momentum, gparams)]
 
+        updates = [(param, param - v) \
+        for param, v in zip(self.params, momentum)]
 
-        nextW = self.W - gamma * vW
-        nextb = self.b - gamma * vb
-
-        cost = T.mean(T.exp((0.5 - self.x) * (T.dot(self.x, nextW) + nextb)))
-        Wgrad = T.grad(cost, nextW)
-        bgrad = T.grad(cost, nextb)
-
-        vW_new = gamma * vW + learning_rate * Wgrad
-        vb_new = gamma * vb + learning_rate * bgrad
-        Wupdate = T.fill_diagonal(0.5 * ((self.W - vW_new) + (self.W - vW_new).T), 0)
-        updates = [(self.W, Wupdate), (self.b, self.b - vb_new), (vW, vW_new), (vb, vb_new)]
-
+        updates = updates + momentum_updates
 
         return cost, updates
 
@@ -334,5 +303,16 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000,\
 
 
 if __name__ == "__main__":
-    sgd(units = 32, learning_rate = 1e-3, epsilon = 1, n_epochs = 1000, batch_size = 16,\
-      sample = '32-50K.npy', gpu = False, flavour = 'vanilla')
+    units = 32
+    learning_rate = 1e-3
+    epsilon = 1
+    epochs = 1000
+    batch_size = 16
+    samples = '32-50K.npy'
+    gpu = False
+    sgd(units = units, learning_rate = learning_rate, epsilon = epsilon, n_epochs = epochs, batch_size = batch_size,\
+      sample = samples, gpu = gpu, flavour = 'vanilla')
+    sgd(units = units, learning_rate = learning_rate, epsilon = epsilon, n_epochs = epochs, batch_size = batch_size,\
+      sample = samples, gpu = gpu, flavour = 'momentum')
+    sgd(units = units, learning_rate = learning_rate, epsilon = epsilon, n_epochs = epochs, batch_size = batch_size,\
+      sample = samples, gpu = gpu, flavour = 'nesterov')
