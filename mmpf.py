@@ -53,17 +53,17 @@ class mpf(object):
         self.params = [self.W, self.b]
 
 
-    def Kcost(self, learning_rate = 1e-2, epsilon = 1):
+    def Kcost(self, learning_rate = 1e-2, epsilon = 1, temperature = 100):
         """
         Returns the cost of vanilla SGD.
         """
 
-        print ('Using Vanilla with  learning rate = %f, epsilon = %f'\
-         % (learning_rate, epsilon))
+        print ('Using Vanilla with  learning rate = %f, epsilon = %f, temperature = %d'\
+         % (learning_rate, epsilon, temperature))
 
-        cost = T.mean(T.exp((0.5 - self.x) * \
-        (T.dot(self.x, T.fill_diagonal(self.W, 0)) + self.b))) * epsilon
-        gparams = T.grad(cost, self.params) 
+        cost = T.mean(T.exp((1 / temperature * (0.5 - self.x) * \
+        (T.dot(self.x, T.fill_diagonal(self.W, 0)) + self.b)))) * epsilon
+        gparams = T.grad(cost, self.params)
 
         updates = [(param, param - learning_rate * gparam) \
         for param, gparam in zip(self.params, gparams)]
@@ -167,7 +167,7 @@ class mpf(object):
         return cost, updates
 
 def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000,\
-    batch_size = 16,  sample = '16-50K.npy', gpu = False, flavour = 'vanilla'):
+    batch_size = 16, temperature = 100, sample = '16-50K.npy', gpu = False, flavour = 'vanilla'):
     """
     Perform stochastic gradient descent on MPF, plots parameters, computes Froenius norm and time taken.
     """
@@ -185,7 +185,8 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000,\
     flow = mpf(input = x, n = units, gpu = gpu)
 
     if flavour == 'vanilla':
-        cost, updates = flow.Kcost()
+        cost, updates = flow.Kcost(learning_rate = learning_rate, \
+        epsilon = epsilon, temperature = temperature)
     elif flavour == 'momentum':
         cost, updates = flow.Kcost_momentum()
     elif flavour == 'nesterov':
@@ -317,17 +318,18 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000,\
 
 if __name__ == "__main__":
     units = 32
-    learning_rate = 1e-3
+    lr = 1e-5
     epsilon = 1
     epochs = 1000
     batch_size = 32
     samples = '32-50K.npy'
     gpu = False
-    # sgd(units = units, learning_rate = learning_rate, epsilon = epsilon, n_epochs = epochs, batch_size = batch_size,\
-    #   sample = samples, gpu = gpu, flavour = 'vanilla')
+    temperature = 1
+    sgd(units = units, learning_rate = lr, epsilon = epsilon, n_epochs = epochs, batch_size = batch_size,\
+      sample = samples, gpu = gpu, flavour = 'vanilla', temperature = temperature)
     # sgd(units = units, learning_rate = learning_rate, epsilon = epsilon, n_epochs = epochs, batch_size = batch_size,\
     #   sample = samples, gpu = gpu, flavour = 'momentum')
     # sgd(units = units, learning_rate = learning_rate, epsilon = epsilon, n_epochs = epochs, batch_size = batch_size,\
     #   sample = samples, gpu = gpu, flavour = 'nesterov')
-    sgd(units = units, learning_rate = learning_rate, epsilon = epsilon, n_epochs = epochs, batch_size = batch_size,\
-      sample = samples, gpu = gpu, flavour = 'adagrad')
+    # sgd(units = units, learning_rate = learning_rate, epsilon = epsilon, n_epochs = epochs, batch_size = batch_size,\
+    #   sample = samples, gpu = gpu, flavour = 'adagrad')
