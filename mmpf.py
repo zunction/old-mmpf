@@ -52,8 +52,21 @@ class mpf(object):
 
         self.params = [self.W, self.b]
 
+    def loss_forcedsymmetry(self, learning_rate = 1e-2, epsilon = 1):
+        """
+        Returns the cost of vanilla SGD.
+        """
 
-    def Kcost(self, learning_rate = 1e-2, epsilon = 1):
+        cost = T.mean(T.exp((0.5 - self.x) * (T.dot(self.x, self.W) + self.b))) * epsilon
+        Wgrad = T.grad(cost, self.W)
+        bgrad = T.grad(cost, self.b)
+
+        Wupdate = T.fill_diagonal(0.5 * ((self.W - learning_rate * Wgrad) + (self.W - learning_rate * Wgrad).T), 0)
+        updates = [(self.W, Wupdate), (self.b, self.b - learning_rate * bgrad )]
+
+        return cost, updates
+
+    def loss(self, learning_rate = 1e-2, epsilon = 1):
         """
         Returns the cost of vanilla SGD.
         """
