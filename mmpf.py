@@ -66,16 +66,20 @@ class mpf(object):
 
         return cost, updates
 
+<<<<<<< HEAD
     def loss(self, learning_rate = 1e-2, epsilon = 1):
+=======
+    def Kcost(self, learning_rate = 1e-2, epsilon = 1, temperature = 100):
+>>>>>>> wild
         """
         Returns the cost of vanilla SGD.
         """
 
-        print ('Using Vanilla with  learning rate = %f, epsilon = %f'\
-         % (learning_rate, epsilon))
+        print ('Using Vanilla with  learning rate = %f, epsilon = %f, temperature = %d'\
+         % (learning_rate, epsilon, temperature))
 
-        cost = T.mean(T.exp((0.5 - self.x) * \
-        (T.dot(self.x, T.fill_diagonal(self.W, 0)) + self.b))) * epsilon
+        cost = T.mean(T.exp((1 / temperature * (0.5 - self.x) * \
+        (T.dot(self.x, T.fill_diagonal(self.W, 0)) + self.b)))) * epsilon
         gparams = T.grad(cost, self.params)
 
         updates = [(param, param - learning_rate * gparam) \
@@ -91,7 +95,8 @@ class mpf(object):
         print ('Using Momentum with gamma = %f, learning rate = %f, epsilon = %f'\
          % (gamma, learning_rate, epsilon))
 
-        cost = T.mean(T.exp((0.5 - self.x) * (T.dot(self.x, T.fill_diagonal(self.W, 0)) + self.b)))
+        cost = T.mean(T.exp((0.5 - self.x) * \
+        (T.dot(self.x, T.fill_diagonal(self.W, 0)) + self.b))) * epsilon
 
         gparams = T.grad(cost, self.params)
 
@@ -132,7 +137,7 @@ class mpf(object):
         nextb = self.b - gamma * vb
 
         cost = T.mean(T.exp((0.5 - self.x) * (T.dot(self.x,\
-                T.fill_diagonal(nextW, 0)) + nextb)))
+                T.fill_diagonal(nextW, 0)) + nextb))) * epsilon
 
         Wgrad = T.grad(cost, nextW)
         bgrad = T.grad(cost, nextb)
@@ -149,10 +154,37 @@ class mpf(object):
 
         return cost, updates
 
-    # def Kcost_adagrad():
+    def Kcost_adagrad(self, learning_rate = 1e-2, epsilon = 1, smoothingterm = 1):
+        """
+        Returns the cost of SGD using adagrad.
+        """
+        print ('Using Adagrad with smoothing term = %.9f, learning rate = %f, epsilon = %f'\
+         % (smoothingterm, learning_rate, epsilon))
+
+        param_shapes = [param.get_value().shape for param in self.params ]
+        grad_hists = [theano.shared(np.zeros(param_shape,
+                        dtype = theano.config.floatX),
+                        borrow = True,
+                        name = 'grad_hist_' + param.name)
+                        for param_shape, param in zip(param_shapes, self.params)]
+
+        cost = T.mean(T.exp((0.5 - self.x) * (T.dot(self.x,\
+                T.fill_diagonal(self.W, 0)) + self.b))) * epsilon
+
+
+        gparams = T.grad(cost, self.params)
+
+        grad_hist_updates = [(g_hist, g_hist + g ** 2) for g_hist, g in zip(grad_hists, gparams)]
+
+        updates = [(param, param - learning_rate * gparam/(T.sqrt(grad_hist + smoothingterm)))\
+        for param, grad_hist, gparam in zip(self.params, grad_hists, gparams)]
+
+        updates = updates + grad_hist_updates
+
+        return cost, updates
 
 def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000,\
-    batch_size = 16,  sample = '16-50K.npy', gpu = False, flavour = 'vanilla'):
+    batch_size = 16, temperature = 100, sample = '16-50K.npy', gpu = False, flavour = 'vanilla'):
     """
     Perform stochastic gradient descent on MPF, plots parameters, computes Froenius norm and time taken.
     """
@@ -170,13 +202,16 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000,\
     flow = mpf(input = x, n = units, gpu = gpu)
 
     if flavour == 'vanilla':
-        cost, updates = flow.Kcost()
+        cost, updates = flow.Kcost(learning_rate = learning_rate, \
+        epsilon = epsilon, temperature = temperature)
     elif flavour == 'momentum':
         cost, updates = flow.Kcost_momentum()
     elif flavour == 'nesterov':
         cost, updates = flow.Kcost_nesterov()
+    elif flavour == 'adagrad':
+        cost, updates = flow.Kcost_adagrad()
     else:
-        raise ValueError("Flavour must be 'vanilla', 'momentum' or 'nesterov\n'.")
+        raise ValueError("Flavour must be 'vanilla', 'momentum', 'nesterov' or 'adagrad'.")
 
     train_mpf = theano.function(inputs = [index], outputs = cost, updates = updates, \
                                 givens = {x: dataset[index * batch_size: (index + 1) * batch_size]})
@@ -300,15 +335,18 @@ def sgd(units = 16, learning_rate = 1e-2, epsilon = 1, n_epochs = 1000,\
 
 if __name__ == "__main__":
     units = 32
-    learning_rate = 1e-3
+    lr = 1e-5
     epsilon = 1
     epochs = 1000
-    batch_size = 16
+    batch_size = 32
     samples = '32-50K.npy'
     gpu = False
-    sgd(units = units, learning_rate = learning_rate, epsilon = epsilon, n_epochs = epochs, batch_size = batch_size,\
-      sample = samples, gpu = gpu, flavour = 'vanilla')
-    sgd(units = units, learning_rate = learning_rate, epsilon = epsilon, n_epochs = epochs, batch_size = batch_size,\
-      sample = samples, gpu = gpu, flavour = 'momentum')
-    sgd(units = units, learning_rate = learning_rate, epsilon = epsilon, n_epochs = epochs, batch_size = batch_size,\
-      sample = samples, gpu = gpu, flavour = 'nesterov')
+    temperature = 1
+    sgd(units = units, learning_rate = lr, epsilon = epsilon, n_epochs = epochs, batch_size = batch_size,\
+      sample = samples, gpu = gpu, flavour = 'vanilla', temperature = temperature)
+    # sgd(units = units, learning_rate = learning_rate, epsilon = epsilon, n_epochs = epochs, batch_size = batch_size,\
+    #   sample = samples, gpu = gpu, flavour = 'momentum')
+    # sgd(units = units, learning_rate = learning_rate, epsilon = epsilon, n_epochs = epochs, batch_size = batch_size,\
+    #   sample = samples, gpu = gpu, flavour = 'nesterov')
+    # sgd(units = units, learning_rate = learning_rate, epsilon = epsilon, n_epochs = epochs, batch_size = batch_size,\
+    #   sample = samples, gpu = gpu, flavour = 'adagrad')
